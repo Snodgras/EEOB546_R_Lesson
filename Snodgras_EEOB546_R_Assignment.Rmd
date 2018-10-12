@@ -33,7 +33,7 @@ Goal: For maize (Group = ZMMIL, ZMMLR, ZMMMR) and teosinte (Group = ZMPBA, ZMPIL
 Remove the multiple and unknown SNPs
 
 ```{r}
-View(snp_position) #Use toggles to be sure what string is used for multiple and unknown markers
+#View(snp_position) #Use toggles to be sure what string is used for multiple and unknown markers
 filtered.snp.position <- filter(snp_position, Chromosome != 'unknown', Chromosome != 'multiple', Position != 'multiple')
 filtered.snp.position$Chromosome <- as.integer(filtered.snp.position$Chromosome) #changes chr to int
 filtered.snp.position$Position <- as.integer(filtered.snp.position$Position)
@@ -215,6 +215,142 @@ write.csv(teosinte.Chr10.descend, file = "teosinte.Chr10.descend.csv", row.names
 #Part 2: Visualizing the data
 Note that it may be easier to reshape the original data using the 'melt' command in the 'reshape2' package before attempting this part
 
+For downstream analysis, I will want the data organized as columns for sample ID, SNP ID, Group, and Genotype. It will be easiest to get this format with all the various data from the original data files `snp_position.txt` and `fang_et_al_genotypes.txt`. The `snp_position.txt` won't need to be reshaped since I only need SNP_ID and chromosome as columns. 
+```{r}
+library(reshape2)
+all.snps <- melt(fang_et_al_genotypes, id.vars = c("Sample_ID", "Group", "JG_OTU"), variable.name = "SNP_ID", value.name = "Genotype") #variable.name titles the measured variable colum, value.name names the value column, have to use the c() function for id.vars since there's multiple id variables
+```
+
 ##SNPs per chromosome
+Plot the total number of SNPs in our dataset on each chromosome
+```{r}
+library(ggplot2)
+SNPbyChr <- ggplot(data = snp_position) + geom_bar(mapping = aes(x = Chromosome)) #with multiple and unknown positioned SNPs
+SNPbyChr
+filteredSNPbyChr <- ggplot(data = filtered.snp.position) + geom_bar(mapping = aes(x = Chromosome)) #without multiple and unknown positioned SNPs
+filteredSNPbyChr
+```
+What groups contribute most of these SNPs -- Continued after I created the homozygous columns for the second question, so I'll put that down there so it'll run with the appropriate dataset
+
 ##Missing data and amount of heterozygosity
+
+```{r}
+all.snps <- mutate(all.snps, homozygous = recode(Genotype, "A/A" = "Hom", "T/T" = "Hom", "G/G" = "Hom", "C/C" = "Hom", "A/T" = "Het", "A/C" = "Het", "A/G" = "Het", "T/C" = "Het", "T/G" = "Het", "T/A" = "Het", "C/A" = "Het", "C/T" = "Het", "C/G" = "Het", "G/A" = "Het", "G/T" = "Het", "G/C" = "Het", "?/?" = "Miss")) # Het = heterozygote, Hom = homozygote, Miss = missing
+all.snps.bygroup <- arrange(all.snps, all.snps$Group) #arrange data by group
+all.snps.bysample <- arrange(all.snps, all.snps$Sample_ID) #arrange data by Sample_ID
+
+HomozygositybyGroup <- ggplot(data = all.snps.bygroup) + geom_bar(mapping = aes(x = Group, color = homozygous, fill = homozygous)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+HomozygositybyGroup
+
+HomozygositybySample <- ggplot(data = all.snps.bysample) + geom_bar(mapping = aes(x = Sample_ID, color = homozygous, fill = homozygous)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+HomozygositybySample
+
+
+```
+
+##Question 1 continued
+What groups contribute most of these SNPs -- Continued
+```{r}
+#if (lengths(tapply(all.snps.HetHom$Genotype, all.snps.HetHom$SNP_ID, unique)) > trial) {
+            #all.snps.HetHom$TrueSNP = TRUE}
+  #else {all.snps.HetHom$TrueSNP = FALSE} #Didn't work
+
+all.snps.HetHom <- filter(all.snps, all.snps$homozygous != "Miss") #removes missing genotypes
+all.snps.HetHom <- mutate(all.snps.HetHom, TrueSNP = FALSE)
+Filtered.ZDIPL <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZDIPL") #Filter to individual groups without missing genotypes
+Filtered.ZPERR <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZPERR")
+Filtered.ZLUXR <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZLUXR")
+Filtered.ZMHUE <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMHUE")
+Filtered.ZMPBA <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMPBA")
+Filtered.ZMPJA <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMPJA")
+Filtered.ZMXCH <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMXCH")
+Filtered.ZMXCP <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMXCP")
+Filtered.ZMXNO <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMXNO")
+Filtered.ZMXNT <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMXNT")
+Filtered.ZMPIL <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMPIL")
+Filtered.ZMXIL <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMXIL")
+Filtered.ZMMLR <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMMLR")
+Filtered.ZMMMR <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMMMR")
+Filtered.ZMMIL <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMMIL")
+Filtered.TRIPS <- filter(all.snps.HetHom, all.snps.HetHom$Group == "TRIPS")
+
+tapply(Filtered.TRIPS$Genotype, Filtered.TRIPS$SNP_ID, unique) %>% lengths() -> temp #Determines the length of each element, i.e. how many unique genotypes there are by SNP_ID
+merged.TRIPS <- merge(temp, Filtered.TRIPS, by.x = 0, by.y = 'SNP_ID', all = FALSE) #merges the lengths in the temp with the filtered data by group
+Filtered.TRIPS$TrueSNP <- merged.TRIPS$x > 1 #adds a logical column indicated whether or not it is a true SNP for that marker for that group
+
+tapply(Filtered.ZDIPL$Genotype, Filtered.ZDIPL$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZDIPL, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZDIPL$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZPERR$Genotype, Filtered.ZPERR$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZPERR, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZPERR$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZLUXR$Genotype, Filtered.ZLUXR$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZLUXR, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZLUXR$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMHUE$Genotype, Filtered.ZMHUE$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMHUE, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMHUE$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMPBA$Genotype, Filtered.ZMPBA$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMPBA, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMPBA$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMPJA$Genotype, Filtered.ZMPJA$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMPJA, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMPJA$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMXCH$Genotype, Filtered.ZMXCH$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMXCH, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMXCH$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMXCP$Genotype, Filtered.ZMXCP$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMXCP, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMXCP$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMXNO$Genotype, Filtered.ZMXNO$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMXNO, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMXNO$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMXNT$Genotype, Filtered.ZMXNT$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMXNT, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMXNT$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMPIL$Genotype, Filtered.ZMPIL$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMPIL, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMPIL$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMXIL$Genotype, Filtered.ZMXIL$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMXIL, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMXIL$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMMLR$Genotype, Filtered.ZMMLR$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMMLR, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMMLR$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMMMR$Genotype, Filtered.ZMMMR$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMMMR, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMMMR$TrueSNP <- merged$x > 1
+
+tapply(Filtered.ZMMIL$Genotype, Filtered.ZMMIL$SNP_ID, unique) %>% lengths() -> temp
+merged <- merge(temp, Filtered.ZMMIL, by.x = 0, by.y = 'SNP_ID', all = FALSE) 
+Filtered.ZMMIL$TrueSNP <- merged$x > 1
+
+Regrouped <- rbind.data.frame(Filtered.TRIPS, Filtered.ZDIPL) #Bringing all the data back together again for graphing purposes
+Regrouped <- rbind(Regrouped, Filtered.ZLUXR, Filtered.ZMHUE, Filtered.ZMMIL, Filtered.ZMMLR, Filtered.ZMMMR, Filtered.ZMPBA,  Filtered.ZMPIL, Filtered.ZMPJA, Filtered.ZMXCH, Filtered.ZMXCP, Filtered.ZMXIL, Filtered.ZMXNO, Filtered.ZMXNT)
+
+SNPbyGroup <- ggplot(data = Regrouped) + geom_bar(mapping = aes(x = Group, color = TrueSNP, fill = TrueSNP))+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
+SNPbyGroup
+```
+
 ##Visualize another feature of the dataset (Personal choice)
+See if genotype has any patterns by group (for example, does one group tend to have more A/T's than another?)
+```{r}
+#all.snps$SNPHom <- paste(all.snps$Genotype, all.snps$homozygous)
+#all.snps.bygroup <- arrange(all.snps, all.snps$Group, all.snps$SNPHom) #rerun with new column
+SNPHom.plot <- ggplot(data = all.snps.bygroup) + geom_bar(mapping = aes(x = Group, color = Genotype, fill = Genotype)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+SNPHom.plot
+```
+
