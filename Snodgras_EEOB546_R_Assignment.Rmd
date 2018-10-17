@@ -225,9 +225,9 @@ all.snps <- melt(fang_et_al_genotypes, id.vars = c("Sample_ID", "Group", "JG_OTU
 Plot the total number of SNPs in our dataset on each chromosome
 ```{r}
 library(ggplot2)
-SNPbyChr <- ggplot(data = snp_position) + geom_bar(mapping = aes(x = Chromosome)) #with multiple and unknown positioned SNPs
-SNPbyChr
-filteredSNPbyChr <- ggplot(data = filtered.snp.position) + geom_bar(mapping = aes(x = Chromosome)) #without multiple and unknown positioned SNPs
+#SNPbyChr <- ggplot(data = snp_position) + geom_bar(mapping = aes(x = Chromosome)) #with multiple and unknown positioned SNPs
+#SNPbyChr
+filteredSNPbyChr <- ggplot(data = filtered.snp.position) + geom_bar(mapping = aes(x = as.character(Chromosome))) #without multiple and unknown positioned SNPs
 filteredSNPbyChr
 ```
 What groups contribute most of these SNPs -- Continued after I created the homozygous columns for the second question, so I'll put that down there so it'll run with the appropriate dataset
@@ -244,8 +244,6 @@ HomozygositybyGroup
 
 HomozygositybySample <- ggplot(data = all.snps.bysample) + geom_bar(mapping = aes(x = Sample_ID, color = homozygous, fill = homozygous)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 HomozygositybySample
-
-
 ```
 
 ##Question 1 continued
@@ -274,7 +272,7 @@ Filtered.ZMMMR <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMMMR")
 Filtered.ZMMIL <- filter(all.snps.HetHom, all.snps.HetHom$Group == "ZMMIL")
 Filtered.TRIPS <- filter(all.snps.HetHom, all.snps.HetHom$Group == "TRIPS")
 
-tapply(Filtered.TRIPS$Genotype, Filtered.TRIPS$SNP_ID, unique) %>% lengths() -> temp #Determines the length of each element, i.e. how many unique genotypes there are by SNP_ID
+tapply(Filtered.TRIPS$Genotype, Filtered.TRIPS$SNP_ID, unique) %>% lengths() -> temp #Determines the length of each element, i.e. how many unique genotypes there are by SNP_ID, this doesn't include NA so length of 1 = all individuals have the same genotype, 2 = there are 2 possible genotypes, 3 = there are three possible genotypes (both homozygous conditions and heterozygous)
 merged.TRIPS <- merge(temp, Filtered.TRIPS, by.x = 0, by.y = 'SNP_ID', all = FALSE) #merges the lengths in the temp with the filtered data by group
 Filtered.TRIPS$TrueSNP <- merged.TRIPS$x > 1 #adds a logical column indicated whether or not it is a true SNP for that marker for that group
 
@@ -341,7 +339,14 @@ Filtered.ZMMIL$TrueSNP <- merged$x > 1
 Regrouped <- rbind.data.frame(Filtered.TRIPS, Filtered.ZDIPL) #Bringing all the data back together again for graphing purposes
 Regrouped <- rbind(Regrouped, Filtered.ZLUXR, Filtered.ZMHUE, Filtered.ZMMIL, Filtered.ZMMLR, Filtered.ZMMMR, Filtered.ZMPBA,  Filtered.ZMPIL, Filtered.ZMPJA, Filtered.ZMXCH, Filtered.ZMXCP, Filtered.ZMXIL, Filtered.ZMXNO, Filtered.ZMXNT)
 
-SNPbyGroup <- ggplot(data = Regrouped) + geom_bar(mapping = aes(x = Group, color = TrueSNP, fill = TrueSNP))+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+CollapseRegrouped <- select(Regrouped,-"Sample_ID", -"JG_OTU", -"Genotype", -"homozygous") #removes these columns so they don't count accidentally in distinct 
+CollapseRegrouped <- distinct(CollapseRegrouped) #saves only unique rows --> collapses the data down into a single row for each group and each snp
+
+#SNPbyID <- ggplot(data = Regrouped) + geom_bar(mapping = aes(x = SNP_ID, color = TrueSNP, fill=TrueSNP, position="fill"))
+#SNPbyID
+
+SNPbyGroup <- ggplot(data = CollapseRegrouped) + geom_bar(mapping = aes(x = Group, color = TrueSNP, fill = TrueSNP, position="fill"))+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 SNPbyGroup
 ```
 
@@ -350,7 +355,12 @@ See if genotype has any patterns by group (for example, does one group tend to h
 ```{r}
 #all.snps$SNPHom <- paste(all.snps$Genotype, all.snps$homozygous)
 #all.snps.bygroup <- arrange(all.snps, all.snps$Group, all.snps$SNPHom) #rerun with new column
-SNPHom.plot <- ggplot(data = all.snps.bygroup) + geom_bar(mapping = aes(x = Group, color = Genotype, fill = Genotype)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-SNPHom.plot
+all.snps.collapsed <- distinct(all.snps.bygroup, Genotype, Group, SNP_ID)
+
+all.snps.collapsed <- count_(all.snps.bygroup, var = c("Group", "SNP_ID", "Genotype")) #creates column "n" that has counts of number of rows with unique values in each of the columns combined in var
+SNPHom.plot1 <- ggplot(data = all.snps.collapsed) + geom_jitter(mapping = aes(x=Genotype, y=n,color=Group, alpha=0.5))
+SNPHom.plot1 #shows genotype on x axis with counts for unique Group/SNP_ID/Genotype combos on y axis, colored by group
+SNPHom.plot2 <- ggplot(data = all.snps.collapsed) + geom_bar(mapping = aes(x = Group, color = Genotype, fill = Genotype)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+SNPHom.plot2 #counts of distinct Group by Genotype by SNP_ID, shows group on x axis and counts of each group on y
 ```
 
